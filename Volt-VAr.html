@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>So Sánh Fixed Cos Phi và Volt-VAr</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+
+        .flow-line {
+            position: relative;
+            background-color: #cbd5e1;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .arrow-flow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-left: 10px solid #3b82f6;
+            animation: flowAnimation 2.5s linear infinite;
+        }
+
+        .arrow-flow-reverse {
+            border-left: none;
+            border-right: 10px solid #ef4444;
+            animation: flowAnimationReverse 2.5s linear infinite;
+        }
+
+        .arrow-flow-pv {
+            border-left: none;
+            border-right: 10px solid #eab308;
+            animation: flowAnimationReverse 2.5s linear infinite;
+        }
+
+        .arrow-flow-dc {
+            border-left: none;
+            border-right: 10px solid #f59e0b;
+            animation: flowAnimationReverse 2s linear infinite;
+        }
+
+        /* Q flow chạy dọc toàn tuyến (Hút Q) */
+        .arrow-flow-q-hut {
+            border-left: 10px solid #0284c7;
+            animation: flowAnimation 3s linear infinite;
+        }
+
+        .arrow-flow-q-phat {
+            border-left: none;
+            border-right: 10px solid #0284c7;
+            animation: flowAnimationReverse 3s linear infinite;
+        }
+
+        /* Hiệu ứng nhánh tải */
+        .arrow-flow-load {
+            border-left: 10px solid #8b5cf6;
+        }
+
+        .arrow-flow-down {
+            top: 0%;
+            left: 50%;
+            transform: translateX(-50%) rotate(90deg);
+            animation: flowAnimationDown 2s linear infinite;
+        }
+
+        @keyframes flowAnimation {
+            0% {
+                left: 0%;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                left: 100%;
+                opacity: 0;
+            }
+        }
+
+        @keyframes flowAnimationReverse {
+            0% {
+                right: 0%;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                right: 100%;
+                opacity: 0;
+            }
+        }
+
+        @keyframes flowAnimationDown {
+            0% {
+                top: -10%;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 110%;
+                opacity: 0;
+            }
+        }
+
+        .node-circle {
+            width: 20px;
+            height: 20px;
+            background-color: #475569;
+            border-radius: 50%;
+            z-index: 20;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Custom Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: currentColor;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            border: 2px solid white;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        #slider_pv::-webkit-slider-thumb {
+            color: #eab308;
+            background: #eab308;
+        }
+
+        #slider_load::-webkit-slider-thumb {
+            color: #8b5cf6;
+            background: #8b5cf6;
+        }
+
+        #slider_sinv::-webkit-slider-thumb {
+            color: #0ea5e9;
+            background: #0ea5e9;
+        }
+
+        #slider_pf::-webkit-slider-thumb {
+            color: #0ea5e9;
+            background: #0ea5e9;
+        }
+
+        .math-block {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #f8fafc;
+            color: #334155;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            box-shadow: inset 0 0 0 1px #e2e8f0;
+            line-height: 1.6;
+            font-size: 0.85rem;
+        }
+
+        .math-block strong {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .panel-fixed-cosphi {
+            border-top: 5px solid #3b82f6;
+        }
+
+        .panel-voltvar {
+            border-top: 5px solid #10b981;
+        }
+
+        .pv-panel {
+            background: linear-gradient(135deg, #1e3a8a 25%, transparent 25%) -4px 0,
+                linear-gradient(225deg, #1e3a8a 25%, transparent 25%) -4px 0,
+                linear-gradient(315deg, #1e3a8a 25%, transparent 25%),
+                linear-gradient(45deg, #1e3a8a 25%, transparent 25%);
+            background-size: 8px 8px;
+            background-color: #1e40af;
+        }
+    </style>
+</head>
+
+<body class="p-2 md:p-6 text-slate-800">
+
+    <div class="max-w-[1400px] mx-auto space-y-6">
+
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+            <h1 class="text-2xl font-bold text-slate-900 mb-1 text-blue-800">So Sánh: Fixed Cos φ vs Điều Khiển Volt-VAr
+                (Q Linh Hoạt)</h1>
+            <p class="text-slate-600 text-sm">Mô phỏng sự khác biệt giữa phương pháp bù Q cố định truyền thống (luôn hấp
+                thụ Q với cosφ=0.95) và phương pháp Volt-VAr thông minh linh hoạt.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+            <div class="lg:col-span-1 space-y-4">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 sticky top-6">
+                    <h2 class="text-base font-bold border-b pb-2 mb-4 flex items-center text-slate-800">
+                        🎛️ Bảng Điều Khiển
+                    </h2>
+
+                    <div class="space-y-6">
+                        <!-- Dung lượng Biến tần -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="font-bold text-sm text-sky-600">Dung lượng Inverter
+                                    (S<sub>inv</sub>)</label>
+                                <span id="val_sinv"
+                                    class="font-bold text-sky-700 bg-sky-50 px-2 rounded border border-sky-200 text-xs py-1">30000
+                                    VA</span>
+                            </div>
+                            <input type="range" id="slider_sinv" min="5000" max="40000" step="500" value="30000">
+                            <p class="text-[10px] text-slate-400 mt-1">Giới hạn công suất tối đa của Inverter.</p>
+                        </div>
+
+                        <!-- Công suất Tấm Pin -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="font-bold text-sm text-yellow-600">Công suất Tấm Pin
+                                    (P<sub>pv</sub>)</label>
+                                <span id="val_pv"
+                                    class="font-bold text-yellow-700 bg-yellow-50 px-2 rounded border border-yellow-200 text-xs py-1">28000
+                                    W</span>
+                            </div>
+                            <input type="range" id="slider_pv" min="0" max="40000" step="500" value="28000">
+                            <p class="text-[10px] text-slate-400 mt-1">Kéo cao sẽ gây đẩy ngược lưới (quá áp)</p>
+                        </div>
+
+                        <!-- Công suất Tải -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="font-bold text-sm text-purple-600">Công suất Tải
+                                    (P<sub>load</sub>)</label>
+                                <span id="val_load"
+                                    class="font-bold text-purple-700 bg-purple-50 px-2 rounded border border-purple-200 text-xs py-1">5000
+                                    W</span>
+                            </div>
+                            <input type="range" id="slider_load" min="0" max="30000" step="500" value="5000">
+                        </div>
+
+                        <!-- Cài đặt Cos Phi -->
+                        <div class="p-3 bg-sky-50 rounded-lg border border-sky-100 shadow-sm">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="font-bold text-sm text-sky-700">Cos Phi Inverter</label>
+                                <span id="val_pf" class="font-bold text-white bg-sky-600 px-2 rounded text-xs py-1">0.95
+                                    (Hấp thụ)</span>
+                            </div>
+                            <input type="range" id="slider_pf" min="-20" max="20" step="1" value="-5">
+                            <div class="flex justify-between text-[10px] font-bold mt-2 text-sky-700 uppercase">
+                                <span>Hấp thụ Q (-0.8)</span>
+                                <span>1.0</span>
+                                <span>Phát Q (0.8)</span>
+                            </div>
+                            <p id="pf_status_text"
+                                class="text-xs mt-3 font-bold text-center text-sky-700 bg-sky-100 p-2 rounded border border-sky-200">
+                                Inverter HẤP THỤ Q để kéo giảm điện áp.
+                            </p>
+                        </div>
+
+                        <!-- Cài đặt Volt-VAr -->
+                        <div class="p-3 bg-sky-50 rounded-lg border border-sky-100 shadow-sm">
+                            <label class="font-bold text-sm text-sky-700 mb-2 block">Cài đặt Ngưỡng Volt-VAr</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <span class="text-[10px] uppercase text-sky-600 font-bold">V_vv4 (Bắt đầu
+                                        hút)</span>
+                                    <input type="number" id="input_vv4" value="231" step="1"
+                                        class="w-full bg-white border border-sky-300 rounded px-2 py-1 text-slate-800 text-sm font-bold outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <span class="text-[10px] uppercase text-sky-600 font-bold">V_vv5 (Hút tối đa)</span>
+                                    <input type="number" id="input_vv5" value="242" step="1"
+                                        class="w-full bg-white border border-sky-300 rounded px-2 py-1 text-slate-800 text-sm font-bold outline-none focus:border-blue-500">
+                                </div>
+                            </div>
+                            <p id="vv_status_text"
+                                class="text-[10px] text-sky-800 mt-3 font-bold text-center bg-white p-1.5 rounded border border-sky-200">
+                                Đang tính toán...
+                            </p>
+                        </div>
+
+                        <!-- Thông số lưới -->
+                        <div class="bg-slate-50 p-3 rounded-lg text-sm grid grid-cols-2 gap-3 border border-slate-200">
+                            <div>
+                                <span class="text-slate-500 text-[10px] uppercase block">U Lưới (Nguồn) [V]</span>
+                                <input type="number" id="input_v_source"
+                                    class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-slate-800 text-base font-bold outline-none"
+                                    value="220" step="1">
+                            </div>
+                            <div>
+                                <span class="text-slate-500 text-[10px] uppercase block">Q Tải nền [VAr]</span>
+                                <input type="number" id="input_q_load"
+                                    class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-slate-800 text-base font-bold outline-none"
+                                    value="500" step="10">
+                            </div>
+                            <div>
+                                <span class="text-slate-500 text-[10px] uppercase block">R Dây [Ω]</span>
+                                <input type="number" id="input_r"
+                                    class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-slate-800 text-base font-bold outline-none"
+                                    value="0.5" step="0.1">
+                            </div>
+                            <div>
+                                <span class="text-slate-500 text-[10px] uppercase block">X Dây [Ω]</span>
+                                <input type="number" id="input_x"
+                                    class="w-full bg-white border border-slate-300 rounded px-2 py-1 text-slate-800 text-base font-bold outline-none"
+                                    value="0.1" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3 space-y-6">
+
+                <!-- ==============================
+                     HỆ THỐNG 1: FIXED COS PHI
+                     ============================== -->
+                <div
+                    class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden panel-fixed-cosphi flex flex-col">
+                    <div class="bg-blue-50/80 p-3 border-b border-blue-200 flex justify-between items-center px-6">
+                        <div>
+                            <h3 class="font-black text-blue-800 text-base uppercase tracking-wide">1. PHƯƠNG PHÁP FIXED
+                                COSφ</h3>
+                            <p id="lbl_q_action_1" class="text-xs text-blue-600 font-bold mt-0.5">Inverter hấp thụ ...
+                                VAr</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-sm font-bold text-blue-800">Điện áp PCC Mới: <span id="vpcc_val_title_1"
+                                    class="text-lg text-blue-600">230.0V</span></span>
+                        </div>
+                    </div>
+
+                    <div class="relative h-60 w-full p-4 flex-grow bg-slate-50/50">
+                        <div class="absolute inset-0 -translate-y-3">
+                            <!-- Lưới -->
+                            <div class="absolute left-[8%] top-1/2 -translate-y-1/2 -translate-x-1/2 text-center z-10">
+                                <div
+                                    class="w-12 h-12 bg-slate-800 rounded flex items-center justify-center text-white font-bold mx-auto text-xl shadow-sm">
+                                    ~</div>
+                                <span class="text-[10px] font-bold text-slate-600 mt-2 block">LƯỚI</span>
+                            </div>
+
+                            <!-- Đường Lưới - PCC -->
+                            <div
+                                class="absolute left-[11%] right-[57%] top-1/2 -translate-y-1/2 h-1.5 flex items-center z-10">
+                                <div id="flow_grid_1" class="flow-line w-full h-full relative">
+                                    <div class="arrow-flow"></div>
+                                </div>
+                            </div>
+                            <div class="absolute left-[26%] top-1/2 -translate-y-8 -translate-x-1/2">
+                                <span id="delta_u_1"
+                                    class="text-sm font-bold px-3 py-1 rounded-full bg-white border border-blue-300 shadow-sm text-blue-700">+0V</span>
+                            </div>
+
+                            <!-- ĐƯỜNG CHẠY Q ĐOẠN LƯỚI - PCC -->
+                            <div class="absolute left-[11%] right-[57%] top-1/2 mt-2.5 -translate-y-1/2 h-1.5 z-0">
+                                <div id="flow_q_grid_1" class="flow-line w-full h-full relative bg-sky-200/60"
+                                    style="display:none;">
+                                    <div class="arrow-flow arrow-flow-q-hut"></div>
+                                </div>
+                            </div>
+
+                            <!-- ĐƯỜNG CHẠY Q ĐOẠN PCC - INV -->
+                            <div class="absolute left-[48%] right-[28%] top-1/2 mt-2.5 -translate-y-1/2 h-1.5 z-0">
+                                <div id="flow_q_inv_1" class="flow-line w-full h-full relative bg-sky-200/60"
+                                    style="display:none;">
+                                    <div class="arrow-flow arrow-flow-q-hut"></div>
+                                </div>
+                            </div>
+
+                            <!-- PCC -->
+                            <div
+                                class="absolute left-[45%] top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center z-20">
+                                <div class="node-circle w-6 h-6 border-4 border-blue-500 bg-blue-100"></div>
+                                <div id="pcc_tag_1"
+                                    class="absolute -top-10 bg-blue-600 text-white px-3 py-1 rounded-md text-base font-bold transition-colors shadow-md whitespace-nowrap">
+                                    230.0V
+                                </div>
+                            </div>
+
+                            <!-- Tải -->
+                            <div
+                                class="absolute left-[45%] top-1/2 pt-4 -translate-x-1/2 flex flex-col items-center z-10">
+                                <div class="w-1.5 h-10 flow-line mb-1 relative">
+                                    <div class="arrow-flow arrow-flow-down arrow-flow-load"></div>
+                                </div>
+                                <div
+                                    class="w-10 h-10 bg-purple-500 rounded text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                                    TẢI</div>
+                            </div>
+
+                            <!-- Đường INV - PCC -->
+                            <div class="absolute left-[48%] right-[28%] top-1/2 -translate-y-1/2 h-1.5 z-10">
+                                <div id="flow_inv_pcc_1" class="flow-line w-full h-full relative">
+                                    <div class="arrow-flow arrow-flow-pv"></div>
+                                </div>
+                            </div>
+
+                            <!-- INV -->
+                            <div
+                                class="absolute left-[75%] top-1/2 -translate-y-1/2 -translate-x-1/2 text-center z-20 flex flex-col items-center">
+                                <span id="inv_pct_1"
+                                    class="text-[10px] font-bold text-slate-700 bg-slate-50 px-1 py-0.5 rounded border border-slate-300 mb-1 block shadow-sm whitespace-nowrap">0.0%</span>
+                                <div
+                                    class="w-12 h-12 bg-yellow-400 border-[3px] border-blue-400 rounded flex items-center justify-center mx-auto text-slate-900 font-black text-sm shadow-md">
+                                    INV</div>
+                                <span id="q_pv_display_1"
+                                    class="text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-300 mt-2 block shadow-sm whitespace-nowrap">Q
+                                    = 0</span>
+                            </div>
+
+                            <!-- Đường PV - INV (DC) -->
+                            <div class="absolute left-[78%] right-[8%] top-1/2 -translate-y-1/2 h-1.5 z-10">
+                                <div id="flow_pv_inv_1" class="flow-line w-full h-full relative bg-yellow-200">
+                                    <div class="arrow-flow arrow-flow-dc"></div>
+                                </div>
+                            </div>
+
+                            <!-- PV -->
+                            <div
+                                class="absolute left-[95%] top-1/2 -translate-y-1/2 -translate-x-1/2 text-center z-10 flex flex-col items-center">
+                                <div
+                                    class="w-12 h-12 pv-panel rounded-sm flex items-center justify-center mx-auto shadow-md border-2 border-blue-400">
+                                    <span class="text-white font-black text-sm z-10 drop-shadow-md">PV</span>
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-600 block mt-2 px-1">DC Power</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-slate-100 bg-white">
+                        <div class="math-block text-sm !border-blue-500 bg-blue-50/30 flex flex-col gap-1.5"
+                            id="math_fixed_cosphi_block">
+                            <!-- JS sẽ điền công thức Fixed Cos Phi vào đây -->
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- ==============================
+                     HỆ THỐNG 2: CÓ BÙ VOLT-VAR
+                     ============================== -->
+                <div
+                    class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden panel-voltvar flex flex-col">
+                    <div
+                        class="bg-emerald-50/80 p-3 border-b border-emerald-200 flex justify-between items-center px-6">
+                        <div>
+                            <h3 class="font-black text-emerald-800 text-base uppercase tracking-wide">2. PHƯƠNG PHÁP
+                                VOLT-VAR</h3>
+                            <p id="lbl_q_action_2" class="text-xs text-emerald-600 font-bold mt-0.5">Thuật toán theo dõi
+                                áp chưa bù và Hấp thụ Q tự động</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-sm font-bold text-emerald-800">Điện áp PCC Mới: <span
+                                    id="vpcc_val_title_2" class="text-lg text-emerald-600">230.0V</span></span>
+                        </div>
+                    </div>
+
+                    <div class="relative h-60 w-full p-4 flex-grow bg-slate-50/50">
+                        <div class="absolute inset-0 -translate-y-3">
+                            <!-- Lưới -->
+                            <div class="absolute left-[8%] top-1/2 -translate-y-1/2 -translate-x-1/2 text-center z-10">
+                                <div
+                                    class="w-12 h-12 bg-slate-800 rounded flex items-center justify-center text-white font-bold mx-auto text-xl shadow-sm">
+                                    ~</div>
+                                <span class="text-[10px] font-bold text-slate-600 mt-2 block">LƯỚI</span>
+                            </div>
+
+                            <!-- Đường Lưới - PCC -->
+                            <div
+                                class="absolute left-[11%] right-[57%] top-1/2 -translate-y-1/2 h-1.5 flex items-center z-10">
+                                <div id="flow_grid_2" class="flow-line w-full h-full relative">
+                                    <div class="arrow-flow"></div>
+                                </div>
+                            </div>
+                            <div class="absolute left-[26%] top-1/2 -translate-y-8 -translate-x-1/2">
+                                <span id="delta_u_2"
+                                    class="text-sm font-bold px-3 py-1 rounded-full bg-white border border-emerald-300 text-emerald-700 shadow-sm">+0V</span>
+                            </div>
+
+                            <!-- ĐƯỜNG CHẠY Q ĐOẠN LƯỚI - PCC -->
+                            <div class="absolute left-[11%] right-[57%] top-1/2 mt-2.5 -translate-y-1/2 h-1.5 z-0">
+                                <div id="flow_q_grid_2" class="flow-line w-full h-full relative bg-sky-200/60"
+                                    style="display:none;">
+                                    <div class="arrow-flow arrow-flow-q-hut"></div>
+                                </div>
+                            </div>
+
+                            <!-- ĐƯỜNG CHẠY Q ĐOẠN PCC - INV -->
+                            <div class="absolute left-[48%] right-[28%] top-1/2 mt-2.5 -translate-y-1/2 h-1.5 z-0">
+                                <div id="flow_q_inv_2" class="flow-line w-full h-full relative bg-sky-200/60"
+                                    style="display:none;">
+                                    <div class="arrow-flow arrow-flow-q-hut"></div>
+                                </div>
+                            </div>
+
+                            <!-- PCC -->
+                            <div
+                                class="absolute left-[45%] top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center z-20">
+                                <div class="node-circle w-6 h-6 border-4 border-emerald-500 bg-emerald-100"></div>
+                                <div id="pcc_tag_2"
+                                    class="absolute -top-10 bg-emerald-600 text-white px-3 py-1 rounded-md text-base font-bold transition-colors shadow-md shadow-emerald-200 whitespace-nowrap">
+                                    230.0V
+                                </div>
+                            </div>
+
+                            <!-- Tải -->
+                            <div
+                                class="absolute left-[45%] top-1/2 pt-4 -translate-x-1/2 flex flex-col items-center z-10">
+                                <div class="w-1.5 h-10 flow-line mb-1 relative">
+                                    <div class="arrow-flow arrow-flow-down arrow-flow-load"></div>
+                                </div>
+                                <div
+                                    class="w-10 h-10 bg-purple-500 rounded text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                                    TẢI</div>
+                            </div>
+
+                            <!-- Đường INV - PCC -->
+                            <div class="absolute left-[48%] right-[28%] top-1/2 -translate-y-1/2 h-1.5 z-10">
+                                <div id="flow_inv_pcc_2" class="flow-line w-full h-full relative">
+                                    <div class="arrow-flow arrow-flow-pv"></div>
+                                </div>
+                            </div>
+
+                            <!-- INV -->
+                            <div
+                                class="absolute left-[75%] top-1/2 -translate-y-1/2 -translate-x-1/2 text-center z-20 flex flex-col items-center">
+                                <span id="inv_pct_2"
+                                    class="text-[10px] font-bold text-slate-700 bg-slate-50 px-1 py-0.5 rounded border border-slate-300 mb-1 block shadow-sm whitespace-nowrap">0.0%</span>
+                                <div
+                                    class="w-12 h-12 bg-yellow-400 border-[3px] border-emerald-400 rounded flex items-center justify-center mx-auto text-slate-900 font-black text-sm shadow-md">
+                                    INV</div>
+                                <span id="q_pv_display_2"
+                                    class="text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-300 mt-2 block shadow-sm whitespace-nowrap">Q
+                                    = 0</span>
+                            </div>
+
+                            <!-- Đường PV - INV (DC) -->
+                            <div class="absolute left-[78%] right-[8%] top-1/2 -translate-y-1/2 h-1.5 z-10">
+                                <div id="flow_pv_inv_2" class="flow-line w-full h-full relative bg-yellow-200">
+                                    <div class="arrow-flow arrow-flow-dc"></div>
+                                </div>
+                            </div>
+
+                            <!-- PV -->
+                            <div
+                                class="absolute left-[95%] top-1/2 -translate-y-1/2 -translate-x-1/2 text-center z-10 flex flex-col items-center">
+                                <div
+                                    class="w-12 h-12 pv-panel rounded-sm flex items-center justify-center mx-auto shadow-md border-2 border-blue-400">
+                                    <span class="text-white font-black text-sm z-10 drop-shadow-md">PV</span>
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-600 block mt-2 px-1">DC Power</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-slate-100 bg-white">
+                        <div class="math-block text-sm !border-emerald-500 bg-emerald-50/30" id="math_volt_var_block">
+                            <!-- JS sẽ điền công thức Volt-VAr vào đây -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div
+                        class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 border-b pb-3 gap-4">
+                        <h2 class="text-lg font-bold flex items-center text-indigo-700 gap-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z">
+                                </path>
+                            </svg>
+                            Biểu đồ so sánh Điện Áp PCC
+                        </h2>
+                        <!-- Custom Legend for better clarity -->
+                        <div class="flex flex-wrap lg:justify-end gap-x-4 gap-y-2 text-xs font-medium text-slate-700">
+                            <span class="flex items-center gap-1.5"
+                                title="Giới hạn trên (+10%) & dưới (-10%) điện áp định mức"><span
+                                    class="w-4 border-t-[3px] border-dashed border-red-500"></span> / <span
+                                    class="w-4 border-t-[3px] border-dashed border-orange-500"></span> ±10%
+                                U<sub>đm</sub></span>
+                            <span class="flex items-center gap-1.5"><span
+                                    class="w-3 h-3 rounded-full bg-blue-500"></span> Có Fixed Cos φ</span>
+                            <span class="flex items-center gap-1.5"><span
+                                    class="w-3 h-3 rounded-full bg-emerald-500"></span> Có Volt-VAr</span>
+                        </div>
+                    </div>
+                    <div class="h-72 w-full mt-2">
+                        <canvas id="voltageChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="conclusion_box"
+                    class="p-5 rounded-xl border flex items-start text-base bg-slate-50 border-slate-200 shadow-sm mb-10">
+                    <div class="text-3xl mr-4">💡</div>
+                    <div>
+                        <strong class="block text-slate-800 mb-1">Đánh giá & So Sánh hiệu quả:</strong>
+                        <span id="conclusion_text" class="text-slate-600">Thay đổi công suất PV để kiểm tra thuật toán
+                            bảo vệ quá áp.</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inputs
+        const sliderSinv = document.getElementById('slider_sinv');
+        const sliderPV = document.getElementById('slider_pv');
+        const sliderLoad = document.getElementById('slider_load');
+        const sliderPF = document.getElementById('slider_pf');
+
+        const inputVv4 = document.getElementById('input_vv4');
+        const inputVv5 = document.getElementById('input_vv5');
+
+        const inputVSource = document.getElementById('input_v_source');
+        const inputQLoad = document.getElementById('input_q_load');
+        const inputR = document.getElementById('input_r');
+        const inputX = document.getElementById('input_x');
+
+        // Displays
+        const valSinv = document.getElementById('val_sinv');
+        const valPV = document.getElementById('val_pv');
+        const valLoad = document.getElementById('val_load');
+        const valPF = document.getElementById('val_pf');
+        const pfStatusText = document.getElementById('pf_status_text');
+        const vvStatusText = document.getElementById('vv_status_text');
+
+        // Chart Init
+        const ctx = document.getElementById('voltageChart').getContext('2d');
+        const voltageChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Nguồn (Trạm)', 'Giữa đường dây', 'Điểm nối lưới (PCC)'],
+                datasets: [
+                    { label: 'Ngưỡng +10%', data: [242, 242, 242], borderColor: '#ef4444', borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0, fill: false }, // index 0 (Đỏ)
+                    { label: 'Ngưỡng -10%', data: [198, 198, 198], borderColor: '#f97316', borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0, fill: false }, // index 1 (Cam)
+                    { label: 'V_pcc (Fixed Cos φ)', data: [220, 220, 220], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 4, pointRadius: 5, fill: false, tension: 0.1 }, // index 2
+                    { label: 'V_pcc (Volt-VAr)', data: [220, 220, 220], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 4, pointRadius: 7, fill: true, tension: 0.1 } // index 3
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { min: 190, max: 270 } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        function updateSimulation() {
+            const S_inv = parseFloat(sliderSinv.value);
+            const P_pv_raw = parseFloat(sliderPV.value);
+            const P_load = parseFloat(sliderLoad.value);
+
+            // Logic: P_pv không thể vượt quá dung lượng biến tần (S_inv)
+            const P_pv = Math.min(P_pv_raw, S_inv);
+
+            let V_vv4 = parseFloat(inputVv4.value) || 231;
+            let V_vv5 = parseFloat(inputVv5.value) || 242;
+
+            if (V_vv4 >= V_vv5) {
+                V_vv5 = V_vv4 + 1;
+                inputVv5.value = V_vv5;
+            }
+
+            const V_SOURCE = parseFloat(inputVSource.value) || 220;
+            const Q_LOAD = parseFloat(inputQLoad.value) || 500;
+            const R = parseFloat(inputR.value) || 0.5;
+            const X = parseFloat(inputX.value) || 0.1;
+
+            const V_MAX_10 = V_SOURCE * 1.1; // +10%
+            const V_MIN_10 = V_SOURCE * 0.9; // -10%
+
+            // Update UI inputs
+            valSinv.textContent = S_inv + ' VA';
+            valPV.textContent = P_pv + ' W' + (P_pv_raw > S_inv ? ' (Đã bị giới hạn bởi S_inv)' : '');
+            valLoad.textContent = P_load + ' W';
+
+            // Fixed Cos Phi Logic
+            const pfRaw = parseFloat(sliderPF.value); // -20 to 20
+            const pf_1 = 1.0 - (Math.abs(pfRaw) / 100);
+
+            if (pfRaw < 0) {
+                valPF.textContent = pf_1.toFixed(2) + ' (Hấp thụ)';
+                pfStatusText.textContent = 'Inverter HẤP THỤ Q để kéo giảm điện áp.';
+                pfStatusText.className = "text-xs mt-3 font-bold text-center text-sky-700 bg-sky-100 p-2 rounded border border-sky-200";
+            } else if (pfRaw > 0) {
+                valPF.textContent = pf_1.toFixed(2) + ' (Phát)';
+                pfStatusText.textContent = 'Inverter PHÁT Q để Nâng điện áp.';
+                pfStatusText.className = "text-xs mt-3 font-bold text-center text-orange-700 bg-orange-100 p-2 rounded border border-orange-200";
+            } else {
+                valPF.textContent = '1.0';
+                pfStatusText.textContent = 'Chỉ phát P (Cos Phi = 1.0).';
+                pfStatusText.className = "text-xs mt-3 font-medium text-center text-slate-600 bg-white p-2 rounded border border-slate-200";
+            }
+
+            const P_net = P_pv - P_load;
+
+            // Điện áp khi Không Bù (V_uncomp) - Dùng làm chuẩn tham chiếu cho Volt-VAr phát hiện
+            const Q_net_uncomp = -Q_LOAD;
+            const deltaV_uncomp = (P_net * R + Q_net_uncomp * X) / V_SOURCE;
+            const V_uncomp = V_SOURCE + deltaV_uncomp;
+
+            // Kiểm tra áp chưa bù có vượt 10% hay không để đổi màu cảnh báo
+            const isUncompOver = V_uncomp > V_MAX_10;
+            const uncompTitleClass = isUncompOver ? 'text-red-600' : 'text-slate-400';
+            const uncompValClass = isUncompOver ? 'text-red-600' : 'text-slate-400';
+            const uncompSuffix = isUncompOver ? '<br><span class="text-xs font-bold">(Quá áp)</span>' : '';
+
+            const Q_max_physical = Math.sqrt(Math.max(0, S_inv * S_inv - P_pv * P_pv));
+
+            // ==========================================
+            // HỆ THỐNG 1: FIXED COS PHI
+            // ==========================================
+            const tan_phi_1 = Math.tan(Math.acos(pf_1));
+
+            let q_pv_1 = 0;
+            if (pfRaw < 0) {
+                q_pv_1 = -P_pv * tan_phi_1;
+            } else if (pfRaw > 0) {
+                q_pv_1 = P_pv * tan_phi_1;
+            }
+
+            let is_q1_limited = false;
+            // Ràng buộc vật lý (Inverter ko thể hút/phát Q vượt quá giới hạn thiết kế)
+            if (Math.abs(q_pv_1) > Q_max_physical) {
+                q_pv_1 = q_pv_1 < 0 ? -Q_max_physical : Q_max_physical;
+                is_q1_limited = true;
+            }
+
+            // Cập nhật phần trăm dung lượng Inverter
+            const s_inv_1 = Math.sqrt(P_pv * P_pv + q_pv_1 * q_pv_1);
+            document.getElementById('inv_pct_1').textContent = ((s_inv_1 / S_inv) * 100).toFixed(1) + '%';
+
+            const Q_net_1 = q_pv_1 - Q_LOAD;
+            const deltaV_1 = (P_net * R + Q_net_1 * X) / V_SOURCE;
+            const V_pcc_1 = V_SOURCE + deltaV_1;
+
+            // Kiểm tra xem áp sau bù có được kéo về an toàn không
+            const isCompensatedSuccess1 = isUncompOver && (V_pcc_1 <= V_MAX_10);
+            const compSuffix1 = isCompensatedSuccess1 ? '<br><span class="text-xs font-bold text-blue-600">(Kéo áp về thành công)</span>' : '';
+
+            let q_pv_1_rounded = Math.round(q_pv_1);
+            let q_net_1_rounded = Math.round(Q_net_1);
+            let qnet1_str = q_net_1_rounded < 0 ? `(${q_net_1_rounded})` : q_net_1_rounded;
+
+            let tan_phi_str = (pfRaw < 0 ? -tan_phi_1 : (pfRaw > 0 ? tan_phi_1 : 0)).toFixed(3);
+            let q1_formula = `Q_inv = P_pv × tan(φ) = ${Math.round(P_pv)} × ${tan_phi_str} = <strong class="text-blue-600">${q_pv_1_rounded} VAr</strong>`;
+            if (is_q1_limited) {
+                q1_formula += ` <span class="text-[10px] text-red-500 font-bold ml-1">(Bị giới hạn S_inv: ${q_pv_1 < 0 ? '-' : ''}${Math.round(Q_max_physical)} VAr)</span>`;
+            }
+
+            let blockHtml1 = `
+                <div class="flex flex-col md:flex-row justify-between gap-4">
+                    <div class="flex flex-col gap-1.5 flex-1">
+                        <div>${q1_formula}</div>
+                        <div>Q_net = Q_inv - Q_load = ${q_pv_1_rounded} - ${Q_LOAD} = <strong class="text-slate-800">${q_net_1_rounded} VAr</strong></div>
+                        <div>ΔV_mới = (P_net×R + Q_net×X)/U = (${Math.round(P_net)} × ${R} + ${qnet1_str} × ${X}) / ${V_SOURCE} = <strong class="text-base">${(deltaV_1 > 0 ? '+' : '') + deltaV_1.toFixed(2)} V</strong></div>
+                        <div class="mt-1 border-t border-blue-200/60 pt-1.5 text-blue-800">V_pcc_mới = U_nguồn + ΔV_mới = ${V_SOURCE} + ${deltaV_1 < 0 ? '(' + deltaV_1.toFixed(2) + ')' : deltaV_1.toFixed(2)} = <strong class="text-base">${V_pcc_1.toFixed(2)} V</strong></div>
+                    </div>
+                    <div class="w-full md:w-48 bg-white border border-blue-200/60 rounded-lg flex flex-col items-center justify-center p-3 shadow-sm shrink-0">
+                        <div class="text-[10px] font-bold ${uncompTitleClass} uppercase tracking-widest mb-1">Áp chưa bù</div>
+                        <div class="text-lg font-bold ${uncompValClass} mb-4 text-center leading-tight">${V_uncomp.toFixed(2)} V${uncompSuffix}</div>
+                        <div class="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Áp sau bù</div>
+                        <div class="text-2xl font-black text-blue-600 text-center leading-tight">${V_pcc_1.toFixed(2)} V${compSuffix1}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('math_fixed_cosphi_block').innerHTML = blockHtml1;
+
+            document.getElementById('vpcc_val_title_1').textContent = V_pcc_1.toFixed(1) + 'V';
+            document.getElementById('delta_u_1').textContent = (deltaV_1 > 0 ? '+' : '') + deltaV_1.toFixed(1) + 'V';
+            document.getElementById('pcc_tag_1').textContent = V_pcc_1.toFixed(1) + 'V';
+            document.getElementById('lbl_q_action_1').textContent = pfRaw < 0 ? `Inverter hấp thụ ${Math.abs(q_pv_1_rounded)} VAr` : (pfRaw > 0 ? `Phát ${Math.abs(q_pv_1_rounded)} VAr` : `Không bù Q`);
+            document.getElementById('q_pv_display_1').textContent = `Q = ${q_pv_1_rounded}`;
+
+            const tag1 = document.getElementById('pcc_tag_1');
+            const title1 = document.getElementById('vpcc_val_title_1');
+            if (V_pcc_1 > V_MAX_10) {
+                tag1.className = tag1.className.replace(/bg-\w+-\d+/, 'bg-red-600').replace('animate-pulse', '') + ' animate-pulse';
+                title1.className = "text-lg font-black text-red-600 animate-pulse";
+            } else {
+                tag1.className = tag1.className.replace(/bg-\w+-\d+/, 'bg-blue-600').replace('animate-pulse', '');
+                title1.className = "text-lg font-black text-blue-600";
+            }
+
+            const displayPV = P_pv > 0 ? 'block' : 'none';
+            document.getElementById('flow_inv_pcc_1').style.display = displayPV;
+            document.getElementById('flow_pv_inv_1').style.display = displayPV;
+            document.getElementById('flow_inv_pcc_2').style.display = displayPV;
+            document.getElementById('flow_pv_inv_2').style.display = displayPV;
+
+            const gridFlow1 = document.getElementById('flow_grid_1').querySelector('div');
+            if (P_net > 0) gridFlow1.className = 'arrow-flow arrow-flow-reverse';
+            else if (P_net < 0) gridFlow1.className = 'arrow-flow';
+            else gridFlow1.className = '';
+
+            const qFlowGrid1 = document.getElementById('flow_q_grid_1');
+            const qFlowInv1 = document.getElementById('flow_q_inv_1');
+            const arrQGrid1 = qFlowGrid1.querySelector('div');
+            const arrQInv1 = qFlowInv1.querySelector('div');
+
+            if (q_pv_1 < -10) {
+                qFlowGrid1.style.display = 'block';
+                qFlowInv1.style.display = 'block';
+                arrQGrid1.className = 'arrow-flow arrow-flow-q-hut';
+                arrQInv1.className = 'arrow-flow arrow-flow-q-hut';
+            } else if (q_pv_1 > 10) {
+                qFlowGrid1.style.display = 'block';
+                qFlowInv1.style.display = 'block';
+                arrQGrid1.className = 'arrow-flow arrow-flow-q-phat';
+                arrQInv1.className = 'arrow-flow arrow-flow-q-phat';
+            } else {
+                qFlowGrid1.style.display = 'none';
+                qFlowInv1.style.display = 'none';
+            }
+
+
+            // ==========================================
+            // HỆ THỐNG 2: VOLT-VAR (Q LINH HOẠT)
+            // ==========================================
+            const Q_max_pf = P_pv * Math.tan(Math.acos(0.95)); // Giới hạn cos phi = 0.95
+            let Q_max = Math.min(Q_max_physical, Q_max_pf);
+
+            // THUẬT TOÁN VOLT-VAR (Hoạt động dựa vào V_uncomp)
+            let q_pv_2 = 0;
+            let mode_text = "";
+            let logic_formula = "";
+
+            if (V_uncomp <= V_vv4) {
+                // Vùng chết
+                q_pv_2 = 0;
+                mode_text = "Vùng an toàn";
+                logic_formula = `V_chưa_bù ≤ V_vv4 => Q_inv = 0 VAr<br><span class="text-slate-500 mt-1 block">${V_uncomp.toFixed(2)}V ≤ ${V_vv4}V => Q_inv = 0 VAr</span>`;
+                vvStatusText.innerHTML = `Điện áp chưa bù an toàn.<br/> <span class="text-slate-500">Q = 0</span>`;
+                vvStatusText.className = "text-xs text-slate-700 mt-3 font-bold text-center bg-slate-100 p-2 rounded border border-slate-200";
+            }
+            else if (V_uncomp > V_vv4 && V_uncomp <= V_vv5) {
+                // Vùng hấp thụ tăng dần
+                q_pv_2 = -Q_max * ((V_uncomp - V_vv4) / (V_vv5 - V_vv4));
+                mode_text = "Vùng Hấp Thụ Tăng Dần";
+                logic_formula = `Q_inv = -Q_max × [(V_chưa_bù - V_vv4) / (V_vv5 - V_vv4)]<br><span class="text-slate-500 mt-1 block">Q_inv = -${Math.round(Q_max)} × [(${V_uncomp.toFixed(2)} - ${V_vv4}) / (${V_vv5} - ${V_vv4})]</span>`;
+                vvStatusText.innerHTML = `V_chưa_bù vượt ngưỡng V_vv4.<br/> <span class="text-sky-600">Đang hấp thụ tuyến tính.</span>`;
+                vvStatusText.className = "text-xs text-sky-800 mt-3 font-bold text-center bg-sky-100 p-2 rounded border border-sky-300";
+            }
+            else {
+                // Vùng hấp thụ tối đa
+                q_pv_2 = -Q_max;
+                mode_text = "Vùng Hấp Thụ Tối Đa";
+                logic_formula = `V_chưa_bù > V_vv5 => Q_inv = -Q_max<br><span class="text-slate-500 mt-1 block">${V_uncomp.toFixed(2)}V > ${V_vv5}V => Q_inv = -${Math.round(Q_max)} VAr</span>`;
+                vvStatusText.innerHTML = `Chạm ngưỡng V_vv5! <br/> <span class="text-red-600">Đang hấp thụ TỐI ĐA Q_max.</span>`;
+                vvStatusText.className = "text-xs text-red-800 mt-3 font-bold text-center bg-red-100 p-2 rounded border border-red-300 animate-pulse";
+            }
+
+            // Cập nhật phần trăm dung lượng Inverter
+            const s_inv_2 = Math.sqrt(P_pv * P_pv + q_pv_2 * q_pv_2);
+            document.getElementById('inv_pct_2').textContent = ((s_inv_2 / S_inv) * 100).toFixed(1) + '%';
+
+            const Q_net_2 = q_pv_2 - Q_LOAD;
+            const deltaV_2 = (P_net * R + Q_net_2 * X) / V_SOURCE;
+            const V_pcc_2 = V_SOURCE + deltaV_2;
+
+            // Kiểm tra xem áp sau bù có được kéo về an toàn không
+            const isCompensatedSuccess2 = isUncompOver && (V_pcc_2 <= V_MAX_10);
+            const compSuffix2 = isCompensatedSuccess2 ? '<br><span class="text-xs font-bold text-emerald-500">(Kéo áp về thành công)</span>' : '';
+
+            let q_pv_2_rounded = Math.round(q_pv_2);
+            let q_net_2_rounded = Math.round(Q_net_2);
+            let qnet2_str = q_net_2_rounded < 0 ? `(${q_net_2_rounded})` : q_net_2_rounded;
+
+            let q_max_text = `<div class="text-[11px] text-slate-500 mb-1 leading-snug">Giới hạn S_inv: √(S_inv² - P_pv²) = √(${S_inv}² - ${Math.round(P_pv)}²) = ${Math.round(Q_max_physical)} VAr<br>Giới hạn cosφ ≥ 0.95: P_pv × tan(acos(0.95)) = ${Math.round(P_pv)} × 0.329 = ${Math.round(Q_max_pf)} VAr</div>`;
+            if (Q_max_pf < Q_max_physical) {
+                q_max_text += `Q_max = <strong>${Math.round(Q_max)} VAr</strong> <span class="text-[10px] text-orange-600 font-bold ml-1">(Áp dụng giới hạn cosφ)</span>`;
+            } else {
+                q_max_text += `Q_max = <strong>${Math.round(Q_max)} VAr</strong> <span class="text-[10px] text-sky-600 font-bold ml-1">(Áp dụng giới hạn S_inv)</span>`;
+            }
+
+            // Giao diện ô hiển thị Bảng Công thức và Cột so sánh Áp chưa bù / Áp sau bù
+            let blockHtml2 = `
+                <div class="flex flex-col md:flex-row justify-between gap-4">
+                    <div class="flex flex-col gap-1.5 flex-1">
+                        <div class="mb-1 text-sky-800">${q_max_text}</div>
+                        <div class="mb-1 mt-2 border-t border-emerald-200/50 pt-2">Thuật toán Volt-VAr: <strong>${mode_text}</strong></div>
+                        <div class="mb-2 pl-2 border-l-2 border-slate-300 text-slate-600 text-xs">${logic_formula}</div>
+                        <div>Q_inv = <strong class="text-sky-600">${q_pv_2_rounded} VAr</strong></div>
+                        <div>Q_net = Q_inv - Q_load = ${q_pv_2_rounded} - ${Q_LOAD} = <strong class="text-slate-800">${q_net_2_rounded} VAr</strong></div>
+                        <div>ΔV_mới = (P_net×R + Q_net×X)/U = (${Math.round(P_net)} × ${R} + ${qnet2_str} × ${X}) / ${V_SOURCE} = <strong class="text-base">${(deltaV_2 > 0 ? '+' : '') + deltaV_2.toFixed(2)} V</strong></div>
+                        <div class="mt-1 border-t border-emerald-200/60 pt-1.5 text-emerald-800">V_pcc_mới = U_nguồn + ΔV_mới = ${V_SOURCE} + ${deltaV_2 < 0 ? '(' + deltaV_2.toFixed(2) + ')' : deltaV_2.toFixed(2)} = <strong class="text-base">${V_pcc_2.toFixed(2)} V</strong></div>
+                    </div>
+                    <div class="w-full md:w-48 bg-white border border-emerald-200/60 rounded-lg flex flex-col items-center justify-center p-3 shadow-sm shrink-0">
+                        <div class="text-[10px] font-bold ${uncompTitleClass} uppercase tracking-widest mb-1">Áp chưa bù</div>
+                        <div class="text-lg font-bold ${uncompValClass} mb-4 text-center leading-tight">${V_uncomp.toFixed(2)} V${uncompSuffix}</div>
+                        <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Áp sau bù</div>
+                        <div class="text-2xl font-black text-emerald-600 text-center leading-tight">${V_pcc_2.toFixed(2)} V${compSuffix2}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('math_volt_var_block').innerHTML = blockHtml2;
+
+            document.getElementById('vpcc_val_title_2').textContent = V_pcc_2.toFixed(1) + 'V';
+            document.getElementById('delta_u_2').textContent = (deltaV_2 > 0 ? '+' : '') + deltaV_2.toFixed(1) + 'V';
+            document.getElementById('pcc_tag_2').textContent = V_pcc_2.toFixed(1) + 'V';
+
+            document.getElementById('lbl_q_action_2').textContent = q_pv_2 < 0 ? `Inverter hấp thụ ${Math.abs(q_pv_2_rounded)} VAr` : `Inverter chưa tham gia (Q=0)`;
+            document.getElementById('q_pv_display_2').textContent = `Q = ${q_pv_2_rounded}`;
+
+            const tag2 = document.getElementById('pcc_tag_2');
+            const title2 = document.getElementById('vpcc_val_title_2');
+            if (V_pcc_2 > V_MAX_10) {
+                tag2.className = tag2.className.replace(/bg-\w+-\d+/, 'bg-red-600').replace('animate-pulse', '') + ' animate-pulse';
+                title2.className = "text-lg font-black text-red-600 animate-pulse";
+            } else {
+                tag2.className = tag2.className.replace(/bg-\w+-\d+/, 'bg-emerald-500').replace('animate-pulse', '');
+                title2.className = "text-lg font-black text-emerald-600";
+            }
+
+            const gridFlow2 = document.getElementById('flow_grid_2').querySelector('div');
+            if (P_net > 0) gridFlow2.className = 'arrow-flow arrow-flow-reverse';
+            else if (P_net < 0) gridFlow2.className = 'arrow-flow';
+            else gridFlow2.className = '';
+
+            const qFlowGrid2 = document.getElementById('flow_q_grid_2');
+            const qFlowInv2 = document.getElementById('flow_q_inv_2');
+            if (q_pv_2 < -1) {
+                qFlowGrid2.style.display = 'block';
+                qFlowInv2.style.display = 'block';
+            } else {
+                qFlowGrid2.style.display = 'none';
+                qFlowInv2.style.display = 'none';
+            }
+
+            // ==========================================
+            // CẬP NHẬT BIỂU ĐỒ & NHẬN XÉT SO SÁNH
+            // ==========================================
+            voltageChart.data.datasets[0].data = [V_MAX_10, V_MAX_10, V_MAX_10]; // +10%
+            voltageChart.data.datasets[1].data = [V_MIN_10, V_MIN_10, V_MIN_10]; // -10%
+            voltageChart.data.datasets[2].data = [V_SOURCE, V_SOURCE + deltaV_1 / 2, V_pcc_1]; // V_pcc (Fixed Cos Phi)
+            voltageChart.data.datasets[3].data = [V_SOURCE, V_SOURCE + deltaV_2 / 2, V_pcc_2]; // V_pcc (Volt-VAr)
+
+            let minChart = Math.floor(Math.min(V_MIN_10, V_pcc_1, V_pcc_2) - 5);
+            let maxChart = Math.ceil(Math.max(V_MAX_10, V_pcc_1, V_pcc_2) + 5);
+            voltageChart.options.scales.y.min = minChart;
+            voltageChart.options.scales.y.max = maxChart;
+            voltageChart.update('none');
+
+            // Kết luận so sánh
+            const concBox = document.getElementById('conclusion_box');
+            const concText = document.getElementById('conclusion_text');
+
+            if (V_uncomp <= V_vv4) {
+                concBox.className = "p-5 rounded-xl border flex items-start text-base bg-sky-50 border-sky-200 text-sky-800 shadow-sm mb-10";
+                concText.innerHTML = `<b>VOLT-VAR TỐI ƯU HƠN:</b> Điện áp đang rất an toàn (${V_uncomp.toFixed(1)}V). Chế độ <b>Fixed Cos φ</b> vẫn hấp thụ mù quáng ${Math.abs(q_pv_1_rounded)} VAr gây sụt áp và tổn hao không cần thiết. Trong khi đó, <b>Volt-VAr</b> nhận diện đúng vùng an toàn nên không hấp thụ Q (Q=0), giữ điện áp ổn định hoàn hảo.`;
+            } else if (V_uncomp > V_vv4) {
+                if (V_pcc_2 > V_vv5) {
+                    concBox.className = "p-5 rounded-xl border flex items-start text-base bg-orange-50 border-orange-300 text-orange-800 shadow-sm mb-10";
+                    concText.innerHTML = `<b>QUÁ TẢI (HẾT DUNG LƯỢNG):</b> Mức đẩy P_pv quá lớn. Cả hai hệ thống đều đã bị giới hạn Q_max vật lý nhưng vẫn không thể kìm điện áp dưới ngưỡng ${V_vv5}V. Ở ngưỡng này, bắt buộc phải dùng thêm giải pháp Active Power Curtailment (cắt giảm P).`;
+                } else {
+                    concBox.className = "p-5 rounded-xl border flex items-start text-base bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm mb-10";
+                    concText.innerHTML = `<b>HOẠT ĐỘNG HIỆU QUẢ NHƯNG VOLT-VAR THÔNG MINH HƠN:</b> Cả hai phương pháp đều giúp giảm điện áp chống quá áp. Tuy nhiên, <b>Volt-VAr</b> thông minh hơn khi chỉ hấp thụ lượng Q vừa đủ cần thiết (${Math.abs(q_pv_2_rounded)} VAr) để ổn định, tránh việc kéo điện áp xuống sâu mù quáng như Fixed Cos φ (${Math.abs(q_pv_1_rounded)} VAr).`;
+                }
+            }
+        }
+
+        // Event Listeners
+        sliderSinv.addEventListener('input', updateSimulation);
+        sliderPV.addEventListener('input', updateSimulation);
+        sliderLoad.addEventListener('input', updateSimulation);
+        sliderPF.addEventListener('input', updateSimulation);
+
+        inputVv4.addEventListener('input', updateSimulation);
+        inputVv5.addEventListener('input', updateSimulation);
+
+        inputVSource.addEventListener('input', () => {
+            const v = parseFloat(inputVSource.value) || 220;
+            inputVv4.value = Math.round(v * 1.05);
+            inputVv5.value = Math.round(v * 1.10);
+            updateSimulation();
+        });
+        inputQLoad.addEventListener('input', updateSimulation);
+        inputR.addEventListener('input', updateSimulation);
+        inputX.addEventListener('input', updateSimulation);
+
+        // Initial run
+        updateSimulation();
+    </script>
+</body>
+
+</html>
